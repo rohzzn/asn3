@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoom Features Calendar</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Load required libraries -->
+  <script src="lib/xlsx.full.min.js"></script>
+  <script src="lib/lodash.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="dashboard-container">
+      <h2 class="title">Zoom Features Calendar</h2>
+      <p class="subtitle">Feature releases from Jan 2022 to Jan 2024</p>
+      
+      <!-- Treemap Legend -->
+      <div class="treemap-legend">
+        <h4>Feature Categories</h4>
+        <div id="categoryLegend" class="category-legend">
+          <!-- Legend items will be populated by JS -->
+        </div>
+      </div>
+      
+      <!-- Calendar Controls -->
+      <div class="calendar-controls">
+        <div class="control-group">
+          <button id="prevQuarterBtn" class="nav-btn">&larr;</button>
+          <h3 id="quarterLabel" class="view-title">Q1 2022</h3>
+          <button id="nextQuarterBtn" class="nav-btn">&rarr;</button>
+        </div>
+        
+        <div class="control-group">
+          <label for="heatmapColor">Heatmap Color:</label>
+          <input type="range" id="heatmapColor" min="0" max="360" value="210">
+          <span id="colorValue" class="color-value">Blue</span>
+        </div>
+      </div>
+      
+      <!-- Calendar View -->
+      <div class="calendar-container" id="calendarContainer">
+        <div class="quarterly-calendar" id="quarterlyCalendar">
+          <!-- Month containers will be populated by JS -->
+        </div>
+        
+        <div id="dayDetails" class="day-details hidden">
+          <!-- Day details will be populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loader"></div>
+    <p>Loading data...</p>
+  </div>
+  
+  <script>
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if libraries are loaded
+      if (typeof XLSX === 'undefined') {
+        console.error('XLSX library failed to load');
+        alert('Required libraries failed to load. Please refresh the page.');
+        return;
+      }
+      if (typeof _ === 'undefined') {
+        console.error('Lodash library failed to load');
+        alert('Required libraries failed to load. Please refresh the page.');
+        return;
+      }
+
+      // Load the main script
+      const script = document.createElement('script');
+      script.src = 'script.js';
+      script.onload = function() {
+        // Initialize the application after script is loaded
+        if (typeof init === 'function') {
+          init();
+        }
+      };
+      script.onerror = function() {
+        console.error('Failed to load script.js');
+        alert('Failed to load the application script. Please refresh the page.');
+      };
+      document.body.appendChild(script);
+    });
+
+    // Handle script loading errors
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error('Script error:', msg, url, lineNo, columnNo, error);
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.classList.add('hidden');
+      }
+      alert('An error occurred while loading the application. Please refresh the page.');
+      return false;
+    };
+  </script>
+</body>
+</html>
