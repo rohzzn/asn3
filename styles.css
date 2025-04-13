@@ -105,9 +105,18 @@ body {
   gap: 16px;
 }
 
+.summary-grid.single-column {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 @media (min-width: 768px) {
   .summary-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .summary-grid.single-column {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -116,6 +125,7 @@ body {
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
 }
 
 .stat-label {
@@ -129,23 +139,50 @@ body {
   font-size: 32px;
   font-weight: bold;
   color: #0E71EB;
+  margin-bottom: 16px;
 }
 
-.quarter-stats, .category-stats {
+.quarter-stats, .month-stats {
   margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.quarter-bar, .category-item {
+.category-stats {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.quarter-bar, .monthly-item {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.quarter-label {
-  width: 60px;
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  transition: transform 0.2s, background-color 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  width: 100%;
+}
+
+.category-item:hover {
+  background-color: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.quarter-label, .monthly-name {
+  width: 80px;
   font-size: 14px;
 }
 
@@ -162,20 +199,20 @@ body {
   border-radius: 4px;
 }
 
-.quarter-count {
+.quarter-count, .monthly-count {
   min-width: 30px;
   text-align: right;
   font-size: 14px;
 }
 
-.category-dot {
+.category-dot, .monthly-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.category-name {
+.category-name, .monthly-name {
   flex-grow: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -183,7 +220,7 @@ body {
   font-size: 14px;
 }
 
-.category-count {
+.category-count, .monthly-count {
   font-weight: 500;
   font-size: 14px;
 }
@@ -254,53 +291,6 @@ body {
 .button-group button.active {
   background-color: #0E71EB;
   color: white;
-}
-
-/* Category legend */
-.category-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
-  padding: 16px;
-  background-color: white;
-  border-top: 1px solid #e9ecef;
-  justify-content: center;
-}
-
-.legend-title {
-  width: 100%;
-  font-size: 16px;
-  font-weight: 600;
-  color: #0E71EB;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.legend-item:hover {
-  background-color: #f1f3f5;
-}
-
-.legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-}
-
-.legend-label {
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 /* Visualization container */
@@ -392,21 +382,20 @@ body {
 }
 
 .treemap-cell {
-  position: relative;
-  border-radius: 2px;
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   overflow: hidden;
-  transition: all var(--transition-duration) ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 4px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
   cursor: pointer;
 }
 
 .treemap-cell:hover {
-  transform: scale(1.1);
-  z-index: 2;
+  transform: scale(1.02);
+  z-index: 10;
+  opacity: 0.9;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.9);
 }
 
 .treemap-cell-label {
@@ -417,17 +406,43 @@ body {
   color: white;
   font-size: 12px;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   text-align: center;
-  width: 100%;
-  padding: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 90%;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--transition-duration) ease;
 }
 
-.treemap-cell:hover .treemap-cell-label {
+/* Only for very small cells in day view, show label on hover */
+.day-treemap .treemap-cell-label {
+  opacity: 0;
+}
+
+.day-treemap .treemap-cell:hover .treemap-cell-label {
   opacity: 1;
+}
+
+.day-details-treemap {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.day-treemap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 50px;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .treemap-cell-info {
@@ -588,13 +603,64 @@ body {
   border: 2px solid #0E71EB;
 }
 
+.day-number,
+.day-releases,
+.days-since-release {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+}
+
 .day-number {
   position: absolute;
   top: 4px;
   left: 4px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
+  color: #333;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 2px 4px;
+  border-radius: 3px;
 }
+
+.day-releases {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0E71EB;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.days-since-release {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-size: 10px;
+  color: #666;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 2px 3px;
+  border-radius: 3px;
+}
+
+/* Empty calendar day cells */
+.calendar-day.empty {
+  background-color: rgba(0, 0, 0, 0.02);
+  cursor: default;
+}
+
+.calendar-day.empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Reset certain properties for the main treemap view */
+/* .treemap-cell-label {
+  opacity: 0;
+} */
 
 .day-count {
   position: absolute;
@@ -664,6 +730,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  text-align: center;
+  font-weight: 600;
+  color: #0E71EB;
+  border-radius: 4px;
+  gap: 5px;
 }
 
 .month-name {
@@ -674,6 +745,12 @@ body {
   font-size: 12px;
   font-weight: bold;
   color: #0E71EB;
+}
+
+.month-feature-count {
+  font-size: 14px;
+  color: #666;
+  font-weight: normal;
 }
 
 .month-grid {
@@ -944,6 +1021,12 @@ body {
   }
 }
 
+@media (max-width: 480px) {
+  .category-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Hide toggle when not in treemap view */
 #treemapToggleGroup {
   display: none;
@@ -1056,139 +1139,68 @@ body {
 }
 
 .calendar-day {
-  aspect-ratio: 1;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 4px;
   position: relative;
-  cursor: pointer;
-  transition: all var(--transition-duration) ease;
-  min-height: 80px;
-  background-color: #f8f9fa;
-  transform-origin: center;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 1;
   overflow: hidden;
+  padding: 0;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .calendar-day:hover, .calendar-day.selected {
-  transform: scale(1.1);
+  transform: scale(1.05);
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.calendar-day.has-releases {
-  border-color: rgba(14, 113, 235, 0.3);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.day-number,
-.day-releases,
-.days-since-release {
-  position: relative;
-  z-index: 2;
-}
-
-.day-number {
+.calendar-day .day-treemap {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #495057;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-.day-releases {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #0E71EB;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-
-.days-since-release {
-  position: absolute;
-  bottom: 2px;
-  left: 2px;
-  font-size: 10px;
-  color: #6c757d;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 2px 4px;
-  border-radius: 4px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 24px;
+  height: calc(100% - 24px);
+  z-index: 1;
 }
 
 .day-treemap {
-  position: absolute;
-  top: 20px;
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
-  display: block;
-  background-color: rgba(255, 255, 255, 0.8);
-  border-radius: 4px;
-  padding: 2px;
-  opacity: 0.8;
-  transition: all var(--transition-duration) ease;
-  z-index: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 50px;
   overflow: hidden;
-  width: calc(100% - 4px);
-  height: calc(100% - 24px);
-}
-
-.calendar-day:hover .day-treemap,
-.calendar-day.selected .day-treemap {
-  opacity: 1;
-  transform: scale(1.2);
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  background-color: white;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .day-details-treemap {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: block;
-  background-color: white;
-  border-radius: 4px;
-  padding: 2px;
-  overflow: hidden;
+  position: relative;
   width: 100%;
-  height: 100%;
-}
-
-.treemap-row {
-  position: absolute;
-  display: block;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
 .treemap-cell {
   position: absolute;
-  border-radius: 2px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   overflow: hidden;
-  transition: all var(--transition-duration) ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 4px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
   cursor: pointer;
-  width: 100%;
 }
 
 .treemap-cell:hover {
-  transform: scale(1.1);
-  z-index: 2;
+  transform: scale(1.02);
+  z-index: 10;
+  opacity: 0.9;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.9);
 }
 
 .treemap-cell-label {
@@ -1199,51 +1211,35 @@ body {
   color: white;
   font-size: 12px;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   text-align: center;
-  width: 100%;
-  padding: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 90%;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--transition-duration) ease;
 }
 
-.treemap-cell:hover .treemap-cell-label {
+/* Only for very small cells in day view, show label on hover */
+.day-treemap .treemap-cell-label {
+  opacity: 0;
+}
+
+.day-treemap .treemap-cell:hover .treemap-cell-label {
   opacity: 1;
 }
 
-.treemap-cell-info {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: white;
-  padding: 8px;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 101;
-  font-size: 12px;
-  color: #333;
-  display: none;
-}
-
-.treemap-cell:hover .treemap-cell-info {
-  display: block;
-}
-
-.treemap-cell-info-item {
+.treemap-empty {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.treemap-cell-info-label {
-  font-weight: 600;
-  color: #666;
-}
-
-.treemap-cell-info-value {
-  color: #333;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #888;
+  font-size: 12px;
+  font-style: italic;
 }
 
 .day-details {
@@ -1299,11 +1295,12 @@ body {
   width: 100%;
   height: 300px;
   margin-bottom: 24px;
-  background-color: #f8f9fa;
-  padding: 16px;
+  background-color: rgba(0, 0, 0, 0.03);
+  padding: 8px;
   border-radius: 8px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .day-details-content {
@@ -1377,10 +1374,14 @@ body {
   );
 }
 
-/* Treemap Legend */
+/* Treemap Legend - No longer used */
+/*
 .treemap-legend {
-  margin-bottom: 24px;
-  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -1391,11 +1392,29 @@ body {
   color: #0E71EB;
   font-size: 16px;
 }
+*/
 
+/* Category legend - No longer used */
+/*
 .category-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-top: 24px;
+  padding: 16px;
+  background-color: white;
+  border-top: 1px solid #e9ecef;
+  justify-content: center;
+}
+
+.legend-title {
+  width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0E71EB;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .legend-item {
@@ -1403,20 +1422,61 @@ body {
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background-color: #f8f9fa;
   border-radius: 4px;
-  font-size: 12px;
-  color: #495057;
-  transition: all var(--transition-duration) ease;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .legend-item:hover {
-  background-color: #e9ecef;
-  transform: translateY(-1px);
+  background-color: #f1f3f5;
 }
 
 .legend-color {
   width: 12px;
   height: 12px;
   border-radius: 2px;
+}
+
+.legend-label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+*/
+
+/* Ensure the day details treemap has proper layout */
+.day-details-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Make sure the calendar day containers can properly display treemaps */
+.calendar-day {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.day-number {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Fix for empty days */
+.calendar-day.empty .day-treemap {
+  background-color: transparent;
+}
+
+/* Clearfix for containers */
+.clearfix::after {
+  content: "";
+  display: table;
+  clear: both;
 }

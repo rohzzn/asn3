@@ -15,11 +15,16 @@
       <h2 class="title">Zoom Features Calendar</h2>
       <p class="subtitle">Feature releases from Jan 2022 to Jan 2024</p>
       
-      <!-- Treemap Legend -->
-      <div class="treemap-legend">
-        <h4>Feature Categories</h4>
-        <div id="categoryLegend" class="category-legend">
-          <!-- Legend items will be populated by JS -->
+      <!-- Quarterly Statistics Summary -->
+      <div class="summary-panel" id="quarterlyStatsSummary">
+        <div class="summary-grid single-column">
+          <div class="summary-item">
+            <div class="stat-label">Categories in Q<span id="quarterNumber"></span> <span id="yearNumber"></span></div>
+            <div class="stat-value" id="totalFeaturesValue">0</div>
+            <div class="category-stats" id="quarterlyStatsChart">
+              <!-- Category stats will be populated by JS -->
+            </div>
+          </div>
         </div>
       </div>
       

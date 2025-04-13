@@ -62,7 +62,12 @@ const elements = {
   calendarContainer: document.getElementById('calendarContainer'),
   quarterlyCalendar: document.getElementById('quarterlyCalendar'),
   dayDetails: document.getElementById('dayDetails'),
-  categoryLegend: document.getElementById('categoryLegend')
+  
+  // Quarterly statistics
+  totalFeaturesValue: document.getElementById('totalFeaturesValue'),
+  quarterlyStatsChart: document.getElementById('quarterlyStatsChart'),
+  quarterNumber: document.getElementById('quarterNumber'),
+  yearNumber: document.getElementById('yearNumber')
 };
 
 // Month names
@@ -504,6 +509,15 @@ function updateQuarterLabel() {
   if (elements.quarterLabel) {
     elements.quarterLabel.textContent = `Q${state.selectedQuarter + 1} ${state.year}`;
   }
+  
+  // Update quarter and year in stats panel
+  if (elements.quarterNumber) {
+    elements.quarterNumber.textContent = state.selectedQuarter + 1;
+  }
+  
+  if (elements.yearNumber) {
+    elements.yearNumber.textContent = state.year;
+  }
 }
 
 // Render quarterly calendar
@@ -535,10 +549,16 @@ function renderQuarterlyCalendar() {
     monthContainer.dataset.month = month;
     monthContainer.dataset.year = year;
     
-    // Add month header
+    // Count features for this month
+    const monthFeatures = state.data.filter(feature => {
+      const featureDate = new Date(feature.date);
+      return featureDate.getFullYear() === year && featureDate.getMonth() === month;
+    });
+    
+    // Add month header with feature count
     const monthHeader = document.createElement('div');
     monthHeader.className = 'month-header';
-    monthHeader.textContent = monthNames[month];
+    monthHeader.innerHTML = `${monthNames[month]} <span class="month-feature-count">(${monthFeatures.length})</span>`;
     monthContainer.appendChild(monthHeader);
     
     // Add month grid
@@ -546,7 +566,7 @@ function renderQuarterlyCalendar() {
     monthGrid.className = 'month-grid';
     monthContainer.appendChild(monthGrid);
   
-  // Add day headers
+    // Add day headers
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayNames.forEach(dayName => {
       const headerCell = document.createElement('div');
@@ -555,14 +575,13 @@ function renderQuarterlyCalendar() {
       monthGrid.appendChild(headerCell);
     });
     
-    // Add days
+    // Add empty cells for days before the first day of the month
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startingDay = firstDay.getDay();
     
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDay; i++) {
-    const emptyCell = document.createElement('div');
+      const emptyCell = document.createElement('div');
       emptyCell.className = 'calendar-day empty';
       monthGrid.appendChild(emptyCell);
     }
@@ -577,17 +596,17 @@ function renderQuarterlyCalendar() {
       if (features.length > 0) {
         dayCell.classList.add('has-releases');
         
-        // Calculate heatmap color based on number of features
+        // Add heatmap color based on number of features
         const intensity = Math.min(1, features.length / maxFeatures);
         const lightness = 100 - (intensity * 50); // Darker for more features
         dayCell.style.backgroundColor = getHSLColor(hue, 70, lightness);
       }
       
       // Add day number
-    const dayNumber = document.createElement('div');
-    dayNumber.className = 'day-number';
-    dayNumber.textContent = day;
-    dayCell.appendChild(dayNumber);
+      const dayNumber = document.createElement('div');
+      dayNumber.className = 'day-number';
+      dayNumber.textContent = day;
+      dayCell.appendChild(dayNumber);
     
       // Add release count
       if (features.length > 0) {
@@ -595,6 +614,10 @@ function renderQuarterlyCalendar() {
         releaseCount.className = 'day-releases';
         releaseCount.textContent = features.length;
         dayCell.appendChild(releaseCount);
+        
+        // Add treemap using the updated renderDayTreemap function
+        const treemap = renderDayTreemap(features, false);
+        dayCell.appendChild(treemap);
       }
       
       // Add days since last release
@@ -606,11 +629,11 @@ function renderQuarterlyCalendar() {
         dayCell.appendChild(daysSinceElement);
       }
       
-      // Add treemap if there are features
-      if (features.length > 0) {
-        const treemap = renderDayTreemap(features);
-        dayCell.appendChild(treemap);
-      }
+      // Add click handler for day cell
+      dayCell.addEventListener('click', () => {
+        // Show day details
+        showDayDetails(day, month, year);
+      });
       
       monthGrid.appendChild(dayCell);
     }
@@ -618,8 +641,8 @@ function renderQuarterlyCalendar() {
     elements.quarterlyCalendar.appendChild(monthContainer);
   });
   
-  // Update category legend
-  renderCategoryLegend();
+  // Update quarterly statistics
+  updateQuarterlyStats();
 }
 
 // Get features for a specific day
@@ -647,147 +670,284 @@ function calculateDaysSinceLastRelease(day, month, year) {
   return Math.floor((currentDate - lastReleaseDate) / (1000 * 60 * 60 * 24));
 }
 
-function squarify(data, width, height, x = 0, y = 0) {
-  if (!data || data.length === 0) return [];
-  
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (total === 0) return [];
-  
-  const rows = [];
-  let currentRow = [];
-  let currentWidth = width;
-  let currentHeight = height;
-  let currentX = x;
-  let currentY = y;
-
-  // Sort data by value in descending order
-  data.sort((a, b) => b.value - a.value);
-
-  for (const item of data) {
-    const value = item.value;
-    const ratio = value / total;
-    const newRow = [...currentRow, item];
-    const newWidth = currentWidth;
-    const newHeight = currentHeight * (value / (currentRow.reduce((sum, i) => sum + i.value, 0) + value));
-
-    const worstAspectRatio = calculateWorstAspectRatio(newRow, newWidth, newHeight);
-    const currentWorstAspectRatio = currentRow.length > 0 ? calculateWorstAspectRatio(currentRow, currentWidth, currentHeight) : Infinity;
-
-    if (worstAspectRatio <= currentWorstAspectRatio) {
-      currentRow = newRow;
-      currentHeight = newHeight;
-    } else {
-      if (currentRow.length > 0) {
-        rows.push({ items: currentRow, width: currentWidth, height: currentHeight, x: currentX, y: currentY });
-        currentY += currentHeight;
-        currentHeight = height - (currentY - y);
-      }
-      currentRow = [item];
-      currentWidth = width;
-      currentX = x;
-    }
-  }
-
-  if (currentRow.length > 0) {
-    rows.push({ items: currentRow, width: currentWidth, height: currentHeight, x: currentX, y: currentY });
-  }
-
-  return rows;
-}
-
-function calculateWorstAspectRatio(items, width, height) {
-  if (!items || items.length === 0) return Infinity;
-  
-  const total = items.reduce((sum, item) => sum + item.value, 0);
-  if (total === 0) return Infinity;
-  
-  let worstRatio = 0;
-  for (const item of items) {
-    const ratio = item.value / total;
-    const itemWidth = width;
-    const itemHeight = height * ratio;
-    const aspectRatio = Math.max(itemWidth / itemHeight, itemHeight / itemWidth);
-    worstRatio = Math.max(worstRatio, aspectRatio);
-  }
-  return worstRatio;
-}
-
+/**
+ * Renders a treemap showing feature categories for a specific day
+ * @param {Array} features - Array of features for the day
+ * @param {boolean} isDetailsView - Whether this is for the details view
+ * @return {HTMLElement} - The treemap container element
+ */
 function renderDayTreemap(features, isDetailsView = false) {
+  // Create container
   const container = document.createElement('div');
   container.className = isDetailsView ? 'day-details-treemap' : 'day-treemap';
   
-  if (!features || features.length === 0) return container;
-
+  // If no features, show empty message
+  if (!features || features.length === 0) {
+    container.innerHTML = '<div class="treemap-empty">No features</div>';
+    return container;
+  }
+  
   // Group features by category
-  const groupedFeatures = features.reduce((acc, feature) => {
+  const categoryData = {};
+  features.forEach(feature => {
     const category = feature.category || 'Uncategorized';
-    if (!acc[category]) {
-      acc[category] = {
-        count: 0,
+    if (!categoryData[category]) {
+      categoryData[category] = {
+        name: category,
+        value: 0,
+        color: getCategoryColor(category),
         features: []
       };
     }
-    acc[category].count++;
-    acc[category].features.push(feature);
-    return acc;
-  }, {});
-
-  // Convert to array format for squarify
-  const data = Object.entries(groupedFeatures).map(([category, info]) => ({
-    category,
-    value: info.count,
-    features: info.features
-  }));
-
-  // Sort by value for better layout
-  data.sort((a, b) => b.value - a.value);
-
-  // Use fixed dimensions for day cells, full container for details view
-  const width = isDetailsView ? 100 : 100;
-  const height = isDetailsView ? 100 : 100;
-
-  // Calculate total value for normalization
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (total === 0) return container;
-
-  // Create rows using squarify algorithm
-  const rows = squarify(data, width, height);
-
-  // Create cells for each row
-  rows.forEach(row => {
-    const rowContainer = document.createElement('div');
-    rowContainer.className = 'treemap-row';
-    rowContainer.style.position = 'absolute';
-    rowContainer.style.left = `${row.x}%`;
-    rowContainer.style.top = `${row.y}%`;
-    rowContainer.style.width = `${row.width}%`;
-    rowContainer.style.height = `${row.height}%`;
-    container.appendChild(rowContainer);
-
-    let currentY = 0;
-    row.items.forEach(item => {
-      const cellHeight = (item.value / total) * 100;
-      const cell = document.createElement('div');
-      cell.className = 'treemap-cell';
-      cell.style.position = 'absolute';
-      cell.style.left = '0';
-      cell.style.top = `${currentY}%`;
-      cell.style.width = '100%';
-      cell.style.height = `${cellHeight}%`;
-      cell.style.backgroundColor = getCategoryColor(item.category);
-      
-      // Add label
-      const label = document.createElement('div');
-      label.className = 'treemap-cell-label';
-      label.textContent = `${item.category} (${item.value})`;
-      cell.appendChild(label);
-      
-      rowContainer.appendChild(cell);
-      currentY += cellHeight;
-    });
+    categoryData[category].value += 1;
+    categoryData[category].features.push(feature);
   });
-
+  
+  // Convert to array and sort by value (descending)
+  const treemapData = Object.values(categoryData).sort((a, b) => b.value - a.value);
+  
+  // Calculate total value
+  const totalValue = treemapData.reduce((sum, item) => sum + item.value, 0);
+  
+  // Set dimensions based on view type - will be applied with CSS
+  const width = 100; // These are just for the algorithm calculation
+  const height = isDetailsView ? 100 : 100; // Use same aspect ratio for calculation
+  
+  // Create treemap using squarify algorithm
+  const treemap = squarifyTreemap(treemapData, {
+    x0: 0,
+    y0: 0,
+    x1: width,
+    y1: height
+  }, totalValue);
+  
+  // Create and append treemap cells
+  treemap.forEach(node => {
+    const cellElement = document.createElement('div');
+    cellElement.className = 'treemap-cell';
+    
+    // Use percentage for positioning to make it responsive
+    cellElement.style.left = `${(node.x0 / width) * 100}%`;
+    cellElement.style.top = `${(node.y0 / height) * 100}%`;
+    cellElement.style.width = `${((node.x1 - node.x0) / width) * 100}%`;
+    cellElement.style.height = `${((node.y1 - node.y0) / height) * 100}%`;
+    cellElement.style.backgroundColor = node.data.color;
+    
+    // Add label
+    const label = document.createElement('div');
+    label.className = 'treemap-cell-label';
+    label.textContent = `${node.data.name} (${node.data.value})`;
+    cellElement.appendChild(label);
+    
+    // Add click handler for details view
+    if (isDetailsView) {
+      cellElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Filter feature list to show only selected category
+        const featuresList = document.querySelector('.day-details-content');
+        if (featuresList) {
+          // Clear existing content
+          featuresList.innerHTML = '';
+          
+          // Add category header
+          const categoryHeader = document.createElement('h3');
+          categoryHeader.textContent = `${node.data.name} (${node.data.features.length})`;
+          categoryHeader.style.color = node.data.color;
+          featuresList.appendChild(categoryHeader);
+          
+          // Render features for this category
+          node.data.features.forEach(feature => {
+            const featureItem = document.createElement('div');
+            featureItem.className = 'feature-item';
+            
+            const description = document.createElement('div');
+            description.className = 'feature-description';
+            description.textContent = feature.description;
+            
+            featureItem.appendChild(description);
+            featuresList.appendChild(featureItem);
+          });
+        }
+      });
+  } else {
+      // For day cell, make the whole cell clickable to show details
+      cellElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dayCell = cellElement.closest('.calendar-day');
+        if (dayCell) {
+          const day = parseInt(dayCell.querySelector('.day-number').textContent);
+          const monthContainer = dayCell.closest('.month-container');
+          const month = parseInt(monthContainer.dataset.month);
+          const year = parseInt(monthContainer.dataset.year);
+          showDayDetails(day, month, year);
+        }
+      });
+    }
+    
+    container.appendChild(cellElement);
+  });
+  
   return container;
+}
+
+/**
+ * Find the best number of items for the next row/column
+ * @param {Array} data - Remaining data items
+ * @param {number} scale - Scale factor for mapping values to pixels
+ * @param {number} length - Available length for the row/column
+ * @returns {Object} - Best row information
+ */
+function findBestRow(data, scale, length) {
+  if (!data.length) return { items: [], width: 0, height: 0 };
+  
+  let bestAspectRatio = Infinity;
+  let bestCount = 1;
+  
+  for (let i = 1; i <= data.length; i++) {
+    const row = data.slice(0, i);
+    const rowSum = row.reduce((sum, d) => sum + d.value, 0);
+    const rowWidth = Math.max(rowSum * scale / length, 0.1); // Prevent division by zero
+    
+    // For each item, calculate the worst aspect ratio
+    let worstRatio = 0;
+    for (let j = 0; j < i; j++) {
+      const itemValue = data[j].value;
+      const itemWidth = itemValue * scale / length;
+      const itemHeight = itemValue / rowSum;
+      // Aspect ratio is max(width/height, height/width)
+      const itemRatio = Math.max(itemWidth/itemHeight, itemHeight/itemWidth);
+      worstRatio = Math.max(worstRatio, itemRatio);
+    }
+    
+    // If this row has a better worst-case aspect ratio, remember it
+    if (worstRatio < bestAspectRatio) {
+      bestAspectRatio = worstRatio;
+      bestCount = i;
+    } else {
+      // If ratio starts getting worse, we've found the optimal count
+      break;
+    }
+  }
+  
+  const items = data.slice(0, bestCount);
+  const rowSum = items.reduce((sum, d) => sum + d.value, 0);
+    
+  return {
+    items,
+    sum: rowSum,
+    aspectRatio: bestAspectRatio
+  };
+}
+
+/**
+ * Implements the squarify treemap algorithm to create rectangles with good aspect ratios
+ * Based on the squarified treemap algorithm by Bruls, Huizing, and van Wijk
+ * @param {Array} data - Array of data objects with value property
+ * @param {Object} bounds - The bounds of the rectangle {x0, y0, x1, y1}
+ * @param {number} totalValue - Sum of all values
+ * @returns {Array} - Array of rectangles with positions
+ */
+function squarifyTreemap(data, bounds, totalValue) {
+  const result = [];
+  const { x0, y0, x1, y1 } = bounds;
+  const width = x1 - x0;
+  const height = y1 - y0;
+  
+  // Skip if no data or invalid dimensions
+  if (!data.length || width <= 0 || height <= 0) {
+    return result;
+  }
+  
+  // Copy data to avoid modifying the original
+  let remaining = [...data];
+  
+  // Current position
+  let currentX = x0;
+  let currentY = y0;
+  let currentWidth = width;
+  let currentHeight = height;
+  
+  // Process in order of descending value (already sorted)
+  while (remaining.length > 0) {
+    // Determine layout direction (use shorter side for better squarification)
+    const isHorizontal = currentWidth < currentHeight;
+    
+    // Calculate scale
+    const currentArea = currentWidth * currentHeight;
+    const remainingValue = remaining.reduce((sum, d) => sum + d.value, 0);
+    const scale = remainingValue > 0 ? currentArea / remainingValue : 0;
+    
+    // Find the best row
+    const shortSide = isHorizontal ? currentWidth : currentHeight;
+    const bestRow = findBestRow(remaining, scale, shortSide);
+    
+    // Layout the row/column
+    const rowBounds = {
+      x0: currentX,
+      y0: currentY,
+      x1: isHorizontal ? currentX + currentWidth : x1,
+      y1: isHorizontal ? y1 : currentY + currentHeight
+    };
+    
+    layoutRow(bestRow.items, rowBounds, isHorizontal, totalValue, result);
+    
+    // Update remaining data
+    remaining = remaining.slice(bestRow.items.length);
+    
+    // Update current position for next row/column
+    if (isHorizontal) {
+      // Move down
+      const rowHeight = (bestRow.sum / remainingValue) * currentHeight;
+      currentY += rowHeight;
+      currentHeight -= rowHeight;
+    } else {
+      // Move right
+      const rowWidth = (bestRow.sum / remainingValue) * currentWidth;
+      currentX += rowWidth;
+      currentWidth -= rowWidth;
+    }
+    
+    // If the remaining area is too small, stop
+    if (currentWidth <= 1 || currentHeight <= 1) {
+      break;
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Layout a single row or column of the treemap
+ * @param {Array} items - Data items for this row/column
+ * @param {Object} bounds - Bounds for this row/column
+ * @param {boolean} isHorizontal - Whether to layout horizontally
+ * @param {number} totalValue - Total value of all data items
+ * @param {Array} result - Array to push results to
+ */
+function layoutRow(items, bounds, isHorizontal, totalValue, result) {
+  const { x0, y0, x1, y1 } = bounds;
+  const width = x1 - x0;
+  const height = y1 - y0;
+  
+  let currentPosition = isHorizontal ? x0 : y0;
+  const rowSum = items.reduce((sum, d) => sum + d.value, 0);
+  
+  items.forEach(item => {
+    // Calculate the size proportionally based on the item's value
+    const size = (item.value / rowSum) * (isHorizontal ? width : height);
+    
+    // For horizontal layout, vary the width; for vertical layout, vary the height
+    const node = {
+      data: item,
+      x0: isHorizontal ? currentPosition : x0,
+      y0: isHorizontal ? y0 : currentPosition,
+      x1: isHorizontal ? currentPosition + size : x1,
+      y1: isHorizontal ? y1 : currentPosition + size
+    };
+    
+    result.push(node);
+    currentPosition += size;
+  });
 }
 
 // Helper function to render feature items
@@ -848,32 +1008,6 @@ function renderFeatureItems(features, container) {
   });
 }
 
-// Add this function to render the category legend
-function renderCategoryLegend() {
-  const categories = new Set();
-  state.data.forEach(item => {
-    if (item.category) categories.add(item.category);
-  });
-  
-  elements.categoryLegend.innerHTML = '';
-  
-  categories.forEach(category => {
-    const legendItem = document.createElement('div');
-    legendItem.className = 'legend-item';
-    
-    const colorBox = document.createElement('div');
-    colorBox.className = 'legend-color';
-    colorBox.style.backgroundColor = getCategoryColor(category);
-    
-    const label = document.createElement('span');
-    label.textContent = category;
-    
-    legendItem.appendChild(colorBox);
-    legendItem.appendChild(label);
-    elements.categoryLegend.appendChild(legendItem);
-  });
-}
-
 // Helper function to get color name from hue
 function getColorName(hue) {
   const hueValue = parseInt(hue);
@@ -910,6 +1044,17 @@ function showDayDetails(day, month, year) {
   const features = getFeaturesForDay(day, month, year);
   if (features.length === 0) return;
   
+  // Remove any existing day details
+  const existingDetails = document.querySelector('.day-details');
+  if (existingDetails) {
+    existingDetails.remove();
+  }
+  
+  const existingOverlay = document.querySelector('.overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+  
   // Create overlay
   const overlay = document.createElement('div');
   overlay.className = 'overlay visible';
@@ -935,27 +1080,52 @@ function showDayDetails(day, month, year) {
   treemapContainer.appendChild(largeTreemap);
   dayDetails.appendChild(treemapContainer);
   
-  // Add content
+  // Add features list with header
+  const featuresHeader = document.createElement('h3');
+  featuresHeader.textContent = `Features (${features.length})`;
+  featuresHeader.style.margin = '16px 0 12px 0';
+  dayDetails.appendChild(featuresHeader);
+  
+  // Add content container for features
   const content = document.createElement('div');
   content.className = 'day-details-content';
   
+  // Group features by category for display
+  const groupedFeatures = {};
   features.forEach(feature => {
+    const category = feature.category || 'Uncategorized';
+    if (!groupedFeatures[category]) {
+      groupedFeatures[category] = [];
+    }
+    groupedFeatures[category].push(feature);
+  });
+  
+  // Display features grouped by category
+  Object.entries(groupedFeatures).forEach(([category, categoryFeatures]) => {
+    // Add category header
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    categoryHeader.style.backgroundColor = getCategoryColor(category) + '20'; // 20% opacity
+    categoryHeader.style.padding = '8px 12px';
+    categoryHeader.style.borderRadius = '4px';
+    categoryHeader.style.marginBottom = '8px';
+    categoryHeader.style.fontWeight = '600';
+    categoryHeader.style.color = getCategoryColor(category);
+    categoryHeader.textContent = `${category} (${categoryFeatures.length})`;
+    content.appendChild(categoryHeader);
+    
+    // Add features in this category
+    categoryFeatures.forEach(feature => {
     const featureItem = document.createElement('div');
     featureItem.className = 'feature-item';
     
-    const categoryTag = document.createElement('span');
-    categoryTag.className = 'feature-category';
-    categoryTag.textContent = feature.category;
-    categoryTag.style.backgroundColor = categoryColors[feature.category] || categoryColors['Uncategorized'];
-    categoryTag.style.color = 'white';
-    
-    const description = document.createElement('div');
+      const description = document.createElement('div');
     description.className = 'feature-description';
     description.textContent = feature.description;
     
-    featureItem.appendChild(categoryTag);
     featureItem.appendChild(description);
-    content.appendChild(featureItem);
+      content.appendChild(featureItem);
+    });
   });
   
   dayDetails.appendChild(content);
@@ -973,6 +1143,94 @@ function showDayDetails(day, month, year) {
     dayDetails.remove();
     overlay.remove();
   });
+}
+
+// Update quarterly statistics
+function updateQuarterlyStats() {
+  if (!state.data || state.data.length === 0) return;
+  
+  // Get features for the current quarter
+  const currentQuarterFeatures = getQuarterFeatures(state.year, state.selectedQuarter);
+  
+  // Update total features count
+  if (elements.totalFeaturesValue) {
+    elements.totalFeaturesValue.textContent = currentQuarterFeatures.length;
+  }
+  
+  // Update category stats chart
+  updateCategoryStats(currentQuarterFeatures);
+}
+
+// Get features for a specific quarter
+function getQuarterFeatures(year, quarter) {
+  const startMonth = quarter * 3;
+  const endMonth = startMonth + 2;
+  
+  return state.data.filter(feature => {
+    const featureDate = new Date(feature.date);
+    const featureYear = featureDate.getFullYear();
+    const featureMonth = featureDate.getMonth();
+    
+    return featureYear === year && featureMonth >= startMonth && featureMonth <= endMonth;
+  });
+}
+
+// Update category stats
+function updateCategoryStats(features) {
+  if (!elements.quarterlyStatsChart) return;
+  
+  // Clear previous content
+  elements.quarterlyStatsChart.innerHTML = '';
+  
+  // Get all categories from the entire dataset
+  const allCategories = {};
+  state.data.forEach(feature => {
+    const category = feature.category || 'Uncategorized';
+    allCategories[category] = {
+      name: category,
+      count: 0,
+      color: getCategoryColor(category)
+    };
+  });
+  
+  // Update counts for categories in the current quarter
+  features.forEach(feature => {
+    const category = feature.category || 'Uncategorized';
+    allCategories[category].count += 1;
+  });
+  
+  // Convert to array and sort by count (descending)
+  const sortedCategories = Object.values(allCategories)
+    .sort((a, b) => b.count - a.count);
+  
+  // Create category items
+  sortedCategories.forEach(category => {
+      const categoryItem = document.createElement('div');
+      categoryItem.className = 'category-item';
+      
+    const categoryDot = document.createElement('div');
+      categoryDot.className = 'category-dot';
+    categoryDot.style.backgroundColor = category.color;
+      
+    const categoryName = document.createElement('div');
+      categoryName.className = 'category-name';
+    categoryName.textContent = category.name;
+      
+    const categoryCount = document.createElement('div');
+      categoryCount.className = 'category-count';
+    categoryCount.textContent = category.count;
+      
+      categoryItem.appendChild(categoryDot);
+      categoryItem.appendChild(categoryName);
+      categoryItem.appendChild(categoryCount);
+      
+    elements.quarterlyStatsChart.appendChild(categoryItem);
+  });
+  
+  // If no categories, show message
+  if (sortedCategories.length === 0) {
+    elements.quarterlyStatsChart.innerHTML = '<div style="color: #6c757d; font-style: italic;">No data available</div>';
+  }
 }
 
 // Initialize the application when DOM is fully loaded
