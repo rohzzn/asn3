@@ -69,9 +69,6 @@ Our visualization approach is based on established techniques from the informati
 - Treemap representations for hierarchical data
 - Combined temporal-categorical visualization methods
 
-## 📃 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🔗 Links
 
